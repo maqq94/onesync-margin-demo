@@ -1,5 +1,6 @@
 'use strict';
 let DATA = null;
+const expanded = new Set();
 
 const $ = s => document.querySelector(s);
 const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
@@ -97,6 +98,45 @@ function statusTag(i) {
   return '<span class="badge s-ok">Healthy</span>';
 }
 
+const q3 = n => (n == null ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: 3 }));
+
+// Inline recipe breakdown for one item: ingredients sorted by cost share, summing to true unit cost.
+function breakdownHTML(i) {
+  if (!i.hasRecipe || !i.recipeParts || !i.recipeParts.length) {
+    const why = (i.flags && i.flags.includes('cost_missing'))
+      ? 'No recipe in Odoo and no stored cost — the true margin can’t be computed until a cost is set.'
+      : 'No recipe in Odoo for this item. The cost shown is the ERP stored cost.';
+    return `<div class="bd-empty">${why}</div>`;
+  }
+  const parts = i.recipeParts.map(p => ({ ...p })).sort((a, b) => b.lineCost - a.lineCost);
+  const total = parts.reduce((s, p) => s + p.lineCost, 0);
+  const yieldQty = (total > 0 && i.trueCost > 0) ? (total / i.trueCost) : 1;
+  let rows = '';
+  parts.forEach(p => {
+    const share = total > 0 ? (p.lineCost / total * 100) : 0;
+    const perUnit = p.lineCost / (yieldQty || 1);
+    rows += `<tr>
+      <td class="bd-name">${esc(p.name)}</td>
+      <td class="num">${q3(p.qty)}</td>
+      <td class="num">${sar(p.unitCost)}</td>
+      <td class="num">${sar(perUnit)}</td>
+      <td class="bd-share"><span class="bar"><span style="width:${Math.min(100, share).toFixed(1)}%"></span></span><b>${share.toFixed(1)}%</b></td>
+    </tr>`;
+  });
+  return `<div class="bd">
+    <table class="bd-table">
+      <thead><tr><th>Ingredient</th><th class="num">Qty</th><th class="num">Unit cost</th><th class="num">Line cost</th><th>Share of cost</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr>
+        <td><b>True unit cost</b></td><td></td><td></td>
+        <td class="num"><b>${sar(i.trueCost)} SAR</b></td>
+        <td>Food cost <b>${i.trueFoodPct == null ? '—' : i.trueFoodPct + '%'}</b> of ${sar(i.price)} SAR price</td>
+      </tr></tfoot>
+    </table>
+    ${yieldQty > 1.5 ? `<div class="bd-note">Recipe yields ~${Math.round(yieldQty)} units; line costs shown per unit.</div>` : ''}
+  </div>`;
+}
+
 function renderItems() {
   const q = ($('#search').value || '').toLowerCase();
   const rows = DATA.result.items
@@ -104,13 +144,21 @@ function renderItems() {
     .sort((a, b) => (a.marginPct == null ? 1 : b.marginPct == null ? -1 : a.marginPct - b.marginPct));
   const body = $('#itemsBody'); body.innerHTML = '';
   rows.slice(0, 400).forEach(i => {
-    const tr = el('tr');
-    tr.innerHTML = `<td>${esc(i.name)}</td><td>${esc(i.category)}</td>`
+    const open = expanded.has(i.id);
+    const tr = el('tr', 'item-row' + (open ? ' open' : ''));
+    tr.dataset.id = i.id;
+    const caret = i.hasRecipe ? '<span class="caret">▸</span>' : '<span class="caret blank"></span>';
+    tr.innerHTML = `<td>${caret}${esc(i.name)}</td><td>${esc(i.category)}</td>`
       + `<td class="num">${sar(i.price)}</td><td class="num">${sar(i.storedCost)}</td><td class="num">${sar(i.trueCost)}</td>`
       + `<td class="num">${pct(i.trueFoodPct)}</td>`
       + `<td class="num ${i.marginSar < 0 ? 'neg' : 'pos'}">${sar(i.marginSar)} (${pct(i.marginPct)})</td>`
       + `<td>${statusTag(i)}</td>`;
     body.appendChild(tr);
+    if (open) {
+      const dr = el('tr', 'bd-row');
+      dr.innerHTML = `<td colspan="8">${breakdownHTML(i)}</td>`;
+      body.appendChild(dr);
+    }
   });
 }
 
@@ -162,6 +210,13 @@ document.querySelectorAll('.smart-nav-link').forEach(t => t.addEventListener('cl
   $('#mainContent').scrollTop = 0;
 }));
 $('#search').addEventListener('input', () => DATA && renderItems());
+$('#itemsBody').addEventListener('click', e => {
+  const tr = e.target.closest('.item-row');
+  if (!tr || !tr.dataset.id) return;
+  const id = Number(tr.dataset.id);
+  if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
+  renderItems();
+});
 $('#refreshBtn').addEventListener('click', () => load(true));
 $('#sidebarToggle').addEventListener('click', () => $('#appSidebar').classList.toggle('open'));
 
