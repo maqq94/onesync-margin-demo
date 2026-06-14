@@ -1,6 +1,13 @@
 'use strict';
 let DATA = null;
 const expanded = new Set();
+let currentBucket = 'menu';
+const BUCKETS = [
+  { key: 'menu', label: 'Menu', title: 'Every menu item by true margin', note: 'The headline numbers above are computed over these menu items only.' },
+  { key: 'production', label: 'Production', title: 'Production sub-recipes', note: 'Internal prep recipes, priced ~1 SAR as placeholders. Not sold directly, so excluded from the menu numbers.' },
+  { key: 'modifier', label: 'Modifiers', title: '“Extra” add-on modifiers', note: 'Add-on “Extra” items. Excluded from the menu blended food cost.' },
+  { key: 'review', label: 'Needs review', title: 'Needs review — auto-excluded', note: 'Excluded from the menu automatically — each row shows why. Fix it in Odoo and it joins the menu.' }
+];
 
 const $ = s => document.querySelector(s);
 const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
@@ -52,6 +59,7 @@ function render() {
   kpis.appendChild(kpiCard(k.negativeMarginCount, 'Items sold at a loss'));
   kpis.appendChild(kpiCard(k.reconstructedCount + k.missingCostCount, 'No real cost in ERP'));
 
+  renderToggle();
   renderItems();
 
   // Alerts
@@ -137,22 +145,45 @@ function breakdownHTML(i) {
   </div>`;
 }
 
+function renderToggle() {
+  const counts = DATA.result.bucketCounts || {};
+  const wrap = $('#bucketToggle'); wrap.innerHTML = '';
+  BUCKETS.forEach(b => {
+    const btn = el('button', 'bucket-tab' + (b.key === currentBucket ? ' active' : '') + (b.key === 'review' ? ' review' : ''),
+      `${b.label} <span class="bcount">${counts[b.key] || 0}</span>`);
+    btn.type = 'button';
+    btn.addEventListener('click', () => { currentBucket = b.key; expanded.clear(); renderToggle(); renderItems(); updateBucketMeta(); });
+    wrap.appendChild(btn);
+  });
+  updateBucketMeta();
+}
+function updateBucketMeta() {
+  const b = BUCKETS.find(x => x.key === currentBucket) || BUCKETS[0];
+  $('#tableTitle').textContent = b.title;
+  $('#bucketNote').textContent = b.note;
+}
+
 function renderItems() {
   const q = ($('#search').value || '').toLowerCase();
   const rows = DATA.result.items
+    .filter(i => i.bucket === currentBucket)
     .filter(i => !q || i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q))
     .sort((a, b) => (a.marginPct == null ? 1 : b.marginPct == null ? -1 : a.marginPct - b.marginPct));
   const body = $('#itemsBody'); body.innerHTML = '';
+  if (!rows.length) { body.appendChild(el('tr', null, '<td colspan="8" class="bd-empty">Nothing in this view.</td>')); return; }
   rows.slice(0, 400).forEach(i => {
     const open = expanded.has(i.id);
     const tr = el('tr', 'item-row' + (open ? ' open' : ''));
     tr.dataset.id = i.id;
     const caret = i.hasRecipe ? '<span class="caret">▸</span>' : '<span class="caret blank"></span>';
+    const statusCell = currentBucket === 'review'
+      ? `<span class="rev-reason">${esc(i.reviewReason || 'Needs review')}</span>`
+      : statusTag(i);
     tr.innerHTML = `<td>${caret}${esc(i.name)}</td><td>${esc(i.category)}</td>`
       + `<td class="num">${sar(i.price)}</td><td class="num">${sar(i.storedCost)}</td><td class="num">${sar(i.trueCost)}</td>`
       + `<td class="num">${pct(i.trueFoodPct)}</td>`
       + `<td class="num ${i.marginSar < 0 ? 'neg' : 'pos'}">${sar(i.marginSar)} (${pct(i.marginPct)})</td>`
-      + `<td>${statusTag(i)}</td>`;
+      + `<td>${statusCell}</td>`;
     body.appendChild(tr);
     if (open) {
       const dr = el('tr', 'bd-row');

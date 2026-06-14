@@ -50,6 +50,17 @@
 .ai-input{display:flex;gap:var(--space-2);padding:var(--space-4) var(--space-5);border-top:1px solid var(--line-1)}
 .ai-input input{flex:1}
 
+/* Bucket toggle */
+.bucket-toggle{display:flex;gap:6px;flex-wrap:wrap;padding:12px 18px 0}
+.bucket-tab{background:var(--surface-3);border:1px solid var(--line-1);color:var(--ink-3);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px}
+.bucket-tab:hover{border-color:var(--accent-primary);color:var(--accent-primary)}
+.bucket-tab.active{background:var(--accent-primary);border-color:var(--accent-primary);color:#fff}
+.bucket-tab.review.active{background:var(--accent-secondary);border-color:var(--accent-secondary)}
+.bucket-tab .bcount{background:rgba(20,32,51,.10);border-radius:999px;padding:0 7px;font-size:11px;min-width:18px;text-align:center}
+.bucket-tab.active .bcount{background:rgba(255,255,255,.28)}
+.bucket-note{padding:8px 18px 0;margin:0;color:var(--ink-4);font-size:12px}
+.rev-reason{color:var(--accent-secondary-hover);font-size:12px;white-space:normal;display:inline-block;max-width:300px;line-height:1.4}
+
 /* Inline recipe breakdown */
 .item-row{cursor:pointer}
 .caret{display:inline-block;width:12px;margin-right:4px;color:var(--accent-primary);font-size:10px;transition:transform .15s}
