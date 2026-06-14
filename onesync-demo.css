@@ -50,6 +50,17 @@
 .ai-input{display:flex;gap:var(--space-2);padding:var(--space-4) var(--space-5);border-top:1px solid var(--line-1)}
 .ai-input input{flex:1}
 
+/* Mobile menu close button + backdrop */
+.sidebar-close{display:none}
+.sidebar-backdrop{display:none}
+@media(max-width:760px){
+  .sidebar-close{display:flex;position:absolute;top:14px;right:14px;width:36px;height:36px;align-items:center;
+    justify-content:center;border-radius:9px;border:1px solid var(--line-1);background:#fff;color:var(--ink-2);
+    font-size:17px;line-height:1;cursor:pointer;z-index:61}
+  .sidebar-backdrop.show{display:block;position:fixed;inset:0;background:rgba(20,32,51,.45);z-index:40}
+  #appSidebar.open{z-index:50!important}
+}
+
 /* Bucket toggle */
 .bucket-toggle{display:flex;gap:6px;flex-wrap:wrap;padding:12px 18px 0}
 .bucket-tab{background:var(--surface-3);border:1px solid var(--line-1);color:var(--ink-3);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px}

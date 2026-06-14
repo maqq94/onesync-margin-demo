@@ -239,6 +239,7 @@ document.querySelectorAll('.smart-nav-link').forEach(t => t.addEventListener('cl
   $('#' + tab).classList.remove('hidden');
   $('#crumb').textContent = CRUMBS[tab] || '';
   $('#mainContent').scrollTop = 0;
+  setMenu(false); // close the mobile menu after picking a tab
 }));
 $('#search').addEventListener('input', () => DATA && renderItems());
 $('#itemsBody').addEventListener('click', e => {
@@ -249,7 +250,13 @@ $('#itemsBody').addEventListener('click', e => {
   renderItems();
 });
 $('#refreshBtn').addEventListener('click', () => load(true));
-$('#sidebarToggle').addEventListener('click', () => $('#appSidebar').classList.toggle('open'));
+function setMenu(open) {
+  $('#appSidebar').classList.toggle('open', open);
+  $('#sidebarBackdrop').classList.toggle('show', open);
+}
+$('#sidebarToggle').addEventListener('click', () => setMenu(!$('#appSidebar').classList.contains('open')));
+$('#sidebarClose').addEventListener('click', () => setMenu(false));
+$('#sidebarBackdrop').addEventListener('click', () => setMenu(false));
 
 initAi();
 load(false);
