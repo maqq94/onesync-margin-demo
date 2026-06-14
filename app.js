@@ -61,6 +61,7 @@ function render() {
 
   renderToggle();
   renderItems();
+  renderRecs();
 
   // Alerts
   const ab = $('#alertBadge');
@@ -228,8 +229,72 @@ async function askAi(q) {
   aiBusy = false; $('#aiSend').disabled = false;
 }
 
+// ---- Recommendations (v2) ----
+const REC_STATES = ['New', 'Reviewed', 'Applied', 'Dismissed'];
+const REC_TYPE_LABEL = { R1: 'Re-portion', R2: 'Reprice', R3: 'Stale cost', R4: 'Re-source', R5: 'Rebalance' };
+let recFilter = 'all';
+const fmtSar = n => (n == null ? '—' : Math.round(Number(n)).toLocaleString('en-US'));
+const recStore = () => { try { return JSON.parse(localStorage.getItem('onesync_rec_states') || '{}'); } catch (_) { return {}; } };
+const recSave = s => { try { localStorage.setItem('onesync_rec_states', JSON.stringify(s)); } catch (_) {} };
+const recKey = r => r.type + '|' + r.title;
+
+function renderRecs() {
+  const r = DATA.result, roll = r.recRollup || {}, recs = r.recommendations || [];
+  if (!$('#recHeadline')) return;
+  $('#recHeadline').innerHTML =
+    `<div class="rec-hero-num">~${fmtSar(roll.recoverablePerMonth)} <span>SAR / month</span></div>
+     <div class="rec-hero-sub">recoverable margin across <b>${recs.filter(x => x.cls === 'recoverable').length}</b> cost-side actions — about ${fmtSar(roll.recoverableAnnual)} SAR/year, from your own ERP data.</div>
+     <div class="rec-hero-chips">
+       <span class="rchip pricing">+ ${fmtSar(roll.pricingUpsidePerMonth)} SAR/mo pricing upside</span>
+       <span class="rchip scenario">+ ${fmtSar(roll.scenarioPerMonth)} SAR/mo menu-mix scenarios</span>
+       <span class="rchip muted">${roll.count} recommendations · advisory only, never auto-applied</span>
+     </div>`;
+
+  const types = ['all', 'R3', 'R2', 'R1', 'R5', 'R4'];
+  const filt = $('#recFilter'); filt.innerHTML = '';
+  types.forEach(t => {
+    const n = t === 'all' ? recs.length : recs.filter(x => x.type === t).length;
+    const b = el('button', 'rfilter' + (recFilter === t ? ' active' : ''), `${t === 'all' ? 'All' : REC_TYPE_LABEL[t]} <span class="bcount">${n}</span>`);
+    b.type = 'button'; b.addEventListener('click', () => { recFilter = t; renderRecs(); });
+    filt.appendChild(b);
+  });
+
+  const states = recStore();
+  const list = $('#recList'); list.innerHTML = '';
+  const shown = recs.filter(x => recFilter === 'all' || x.type === recFilter);
+  if (!shown.length) { list.appendChild(el('div', 'bd-empty', 'No recommendations in this filter.')); return; }
+  shown.forEach(rec => {
+    const key = recKey(rec), st = states[key] || 'New';
+    const card = el('article', 'rec-card cls-' + rec.cls + (st === 'Dismissed' ? ' dismissed' : '') + (st === 'Applied' ? ' applied' : ''));
+    const sar = rec.sar.perMonth != null ? `${fmtSar(Math.abs(rec.sar.perMonth))} <span>SAR/mo</span>` : '';
+    const annual = rec.sar.annual != null ? `~${fmtSar(Math.abs(rec.sar.annual))}/yr` : '';
+    const whyRows = rec.why.map(w => {
+      const val = Array.isArray(w.value) ? '<ul>' + w.value.map(v => `<li>${esc(v)}</li>`).join('') + '</ul>' : esc(w.value);
+      return `<div class="why-row"><span class="why-label">${esc(w.label)}</span><span class="why-val">${val}</span></div>`;
+    }).join('');
+    card.innerHTML =
+      `<div class="rec-top">
+         <span class="rec-badge t-${rec.type}">${REC_TYPE_LABEL[rec.type]}${rec.scenario ? ' · scenario' : ''}</span>
+         <div class="rec-impact">${sar}<small>${annual}</small></div>
+       </div>
+       <div class="rec-title">${esc(rec.title)}</div>
+       <div class="rec-sub">${esc(rec.subtitle || '')}</div>
+       <button class="rec-why-toggle" type="button">Why ▸</button>
+       <div class="rec-why hidden">${whyRows}<div class="rec-guard">⚠ ${esc(rec.guardrail || '')}</div></div>
+       <div class="rec-states">${REC_STATES.map(s => `<button type="button" class="rec-state${s === st ? ' on' : ''}" data-s="${s}">${s}</button>`).join('')}</div>`;
+    card.querySelector('.rec-why-toggle').addEventListener('click', e => {
+      const w = card.querySelector('.rec-why'); w.classList.toggle('hidden');
+      e.target.textContent = w.classList.contains('hidden') ? 'Why ▸' : 'Why ▾';
+    });
+    card.querySelectorAll('.rec-state').forEach(btn => btn.addEventListener('click', () => {
+      const s = recStore(); s[key] = btn.dataset.s; recSave(s); renderRecs();
+    }));
+    list.appendChild(card);
+  });
+}
+
 // ---- Nav ----
-const CRUMBS = { dashboard: 'Margin Dashboard', alerts: 'Alerts', digest: 'Weekly Digest', branches: 'Branches', ai: 'AI Copilot' };
+const CRUMBS = { dashboard: 'Margin Dashboard', recs: 'Recommendations', alerts: 'Alerts', digest: 'Weekly Digest', branches: 'Branches', ai: 'AI Copilot' };
 document.querySelectorAll('.smart-nav-link').forEach(t => t.addEventListener('click', e => {
   e.preventDefault();
   document.querySelectorAll('.smart-nav-link').forEach(x => x.classList.remove('active'));

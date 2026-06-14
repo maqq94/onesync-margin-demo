@@ -42,12 +42,16 @@
               <strong>Margin Control</strong>
               <small>your real numbers</small>
             </span>
-            <span class="nav-summary-count">5</span>
+            <span class="nav-summary-count">6</span>
           </summary>
           <div class="smart-nav-list">
             <a class="nav smart-nav-link active" href="#" data-tab="dashboard">
               <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg></span>
               <span class="label">Margin Dashboard</span><small>every item by true margin</small>
+            </a>
+            <a class="nav smart-nav-link" href="#" data-tab="recs">
+              <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+              <span class="label">Recommendations</span><small>actions + SAR impact</small>
             </a>
             <a class="nav smart-nav-link" href="#" data-tab="alerts">
               <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
@@ -175,6 +179,13 @@
             <button class="btn btn-primary" id="aiSend" type="submit">Ask</button>
           </form>
         </article>
+      </section>
+
+      <!-- RECOMMENDATIONS (v2 prescriptive engine) -->
+      <section id="recs" class="panel hidden">
+        <section class="rec-headline" id="recHeadline"></section>
+        <div class="rec-filter" id="recFilter"></div>
+        <div class="rec-list" id="recList"></div>
       </section>
     </main>
   </div>
