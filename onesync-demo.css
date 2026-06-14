@@ -1,0 +1,54 @@
+/* OneSync demo — only the few things the portal CSS doesn't already provide.
+   Everything else is the real portal design system (tokens.css + onesync.css). */
+
+.hidden{display:none!important}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* KPI grid using the portal .kpi component */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);margin-bottom:var(--space-5)}
+.kpi{padding:var(--space-4) var(--space-5)}
+.kpi .label{font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:.4px}
+.kpi .value{font-family:var(--font-data);font-size:var(--font-size-3xl);font-weight:700;line-height:1.1}
+@media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+
+/* status pills mapped to portal pastel tokens */
+.badge.s-loss{background:var(--accent-rose);color:var(--ink-rose)}
+.badge.s-missing{background:var(--surface-3);color:var(--ink-3)}
+.badge.s-rebuilt{background:var(--accent-sky);color:var(--ink-sky)}
+.badge.s-over{background:var(--accent-butter);color:var(--ink-butter)}
+.badge.s-ok{background:var(--accent-mint);color:var(--ink-mint)}
+.neg{color:var(--accent-crimson);font-weight:600}
+.pos{color:var(--accent-sage);font-weight:600}
+
+/* alerts list */
+.alerts{display:flex;flex-direction:column}
+.alert{display:flex;gap:var(--space-3);padding:var(--space-4) var(--space-5);border-bottom:1px solid var(--line-1);align-items:flex-start}
+.alert .bar{width:4px;align-self:stretch;border-radius:4px;min-height:34px}
+.alert.critical .bar{background:var(--accent-crimson)}
+.alert.warning .bar{background:var(--accent-secondary)}
+.alert.info .bar{background:var(--accent-primary)}
+.alert .type{font-weight:600;font-size:var(--font-size-xs);text-transform:uppercase;letter-spacing:.3px}
+.alert.critical .type{color:var(--accent-crimson)}
+.alert.warning .type{color:var(--accent-secondary-hover)}
+.alert.info .type{color:var(--accent-primary)}
+.alert .item{font-weight:600;margin-top:1px}
+.alert .detail{color:var(--ink-3);font-size:var(--font-size-sm);margin-top:2px}
+
+.digest-lead{font-size:var(--font-size-lg);line-height:var(--line-height-body);
+  background:var(--accent-sky);border-left:4px solid var(--accent-primary);
+  padding:var(--space-4);border-radius:var(--r-2);margin:var(--space-3) 0 var(--space-5)}
+
+/* AI copilot chat — built on the portal card */
+.ai-thread{padding:var(--space-4) var(--space-5);display:flex;flex-direction:column;gap:var(--space-3);
+  max-height:46vh;overflow-y:auto;background:var(--surface-1)}
+.ai-msg{max-width:80%;padding:11px 14px;border-radius:13px;font-size:var(--font-size-sm);line-height:1.55;white-space:pre-wrap}
+.ai-msg.bot{background:var(--accent-sky);color:var(--ink-1);border-bottom-left-radius:4px;align-self:flex-start}
+.ai-msg.me{background:linear-gradient(135deg,var(--accent-primary),var(--accent-primary-hover));color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
+.ai-msg.think{color:var(--ink-3);font-style:italic;background:var(--surface-3)}
+.ai-chips{display:flex;flex-wrap:wrap;gap:var(--space-2);padding:0 var(--space-5) var(--space-4)}
+.ai-chips .chip{cursor:pointer}
+.ai-input{display:flex;gap:var(--space-2);padding:var(--space-4) var(--space-5);border-top:1px solid var(--line-1)}
+.ai-input input{flex:1}
+
+.app-foot{display:flex;justify-content:space-between;gap:var(--space-3);padding:var(--space-4) var(--space-6);
+  color:var(--ink-4);font-size:var(--font-size-xs);flex-wrap:wrap}
