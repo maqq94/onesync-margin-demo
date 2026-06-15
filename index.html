@@ -42,7 +42,7 @@
               <strong>Margin Control</strong>
               <small>your real numbers</small>
             </span>
-            <span class="nav-summary-count">6</span>
+            <span class="nav-summary-count">7</span>
           </summary>
           <div class="smart-nav-list">
             <a class="nav smart-nav-link active" href="#" data-tab="dashboard">
@@ -65,6 +65,10 @@
             <a class="nav smart-nav-link" href="#" data-tab="branches">
               <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg></span>
               <span class="label">Branches</span><small>compare locations</small>
+            </a>
+            <a class="nav smart-nav-link" href="#" data-tab="wastage">
+              <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></span>
+              <span class="label">Wastage</span><small>logged waste only</small>
             </a>
             <a class="nav smart-nav-link" href="#" data-tab="ai">
               <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>
@@ -120,7 +124,9 @@
             <table class="t" id="itemsTable">
               <thead><tr>
                 <th>Item</th><th>Category</th><th class="num">Price</th>
-                <th class="num">ERP cost</th><th class="num">True cost</th>
+                <th class="num">ERP cost</th><th class="num">True cost<br><small>recipe</small></th>
+                <th class="num">True cost<br><small>paid (PO)</small></th>
+                <th class="num sortable" id="driftSort" title="Sort by costing drift">Drift ⇅</th>
                 <th class="num">True food cost</th><th class="num">Margin</th><th>Status</th>
               </tr></thead>
               <tbody id="itemsBody"></tbody>
@@ -161,6 +167,12 @@
             </table>
           </div>
         </article>
+      </section>
+
+      <!-- WASTAGE — real logged entries only (Task 3) -->
+      <section id="wastage" class="panel hidden">
+        <section class="rec-headline" id="wasteHeadline"></section>
+        <div id="wasteBody"></div>
       </section>
 
       <!-- AI COPILOT -->

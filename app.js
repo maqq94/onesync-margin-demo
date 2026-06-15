@@ -62,6 +62,7 @@ function render() {
   renderToggle();
   renderItems();
   renderRecs();
+  renderWastage();
 
   // Alerts — badge = distinct alert TYPES, not raw row count (247 rows looks like spam)
   const ab = $('#alertBadge');
@@ -95,8 +96,14 @@ function render() {
   $('#digestLead').innerHTML = `Your ERP reports a blended food cost of <b>${pct(k.erpBlendedFoodCostPct)}</b>, but the real number is <b>${pct(k.trueBlendedFoodCostPct)}</b> — a hidden gap of <b>${pct(k.hiddenCostGapPct)}</b>. <b>${d.breachingCount}</b> items are above the ${m.target}% target. <b>${k.negativeMarginCount}</b> are sold at a loss.`;
   const dl = $('#digestLeaks'); dl.innerHTML = '';
   if (!d.topLeaks.length) dl.appendChild(el('tr', null, '<td>No leaks detected.</td>'));
-  d.topLeaks.forEach(i => dl.appendChild(el('tr', null,
-    `<td>${esc(i.name)}</td><td class="num neg"><b>${sar(i.leakMonth)} SAR/mo</b></td><td class="num">${pct(i.trueFoodPct)} food cost</td><td class="num">${i.units}/mo sold</td>`)));
+  d.topLeaks.forEach(i => {
+    const tr = el('tr', 'leak-row');
+    tr.innerHTML = `<td><span class="caret">▸</span>${esc(i.name)}</td><td class="num neg"><b>${sar(i.leakMonth)} SAR/mo</b></td><td class="num">${pct(i.trueFoodPct)} food cost</td><td class="num">${i.units}/mo sold</td>`;
+    const why = el('tr', 'leak-why hidden');
+    why.innerHTML = `<td colspan="4">${(i.reasons || []).map(rr => `<div class="why-row"><span class="why-label">${esc(rr.tag)}</span><span class="why-val">${esc(rr.text)}</span></div>`).join('') || '<div class="why-val">No single driver — a small gap on this item.</div>'}</td>`;
+    tr.addEventListener('click', () => { why.classList.toggle('hidden'); tr.classList.toggle('open'); });
+    dl.appendChild(tr); dl.appendChild(why);
+  });
   const dc = $('#digestCats'); dc.innerHTML = '';
   d.categories.slice(0, 10).forEach(c => dc.appendChild(el('tr', null,
     `<td>${esc(c.name)}</td><td class="num">${c.items} items</td><td class="num">${pct(c.avgFoodPct)} avg food cost</td>`)));
@@ -176,14 +183,17 @@ function updateBucketMeta() {
   $('#bucketNote').textContent = b.note;
 }
 
+let sortMode = 'margin';
 function renderItems() {
   const q = ($('#search').value || '').toLowerCase();
+  const byMargin = (a, b) => (a.marginPct == null ? 1 : b.marginPct == null ? -1 : a.marginPct - b.marginPct);
+  const byDrift = (a, b) => (Math.abs(b.paidDriftPct || 0) - Math.abs(a.paidDriftPct || 0)) || byMargin(a, b);
   const rows = DATA.result.items
     .filter(i => i.bucket === currentBucket)
     .filter(i => !q || i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q))
-    .sort((a, b) => (a.marginPct == null ? 1 : b.marginPct == null ? -1 : a.marginPct - b.marginPct));
+    .sort(sortMode === 'drift' ? byDrift : byMargin);
   const body = $('#itemsBody'); body.innerHTML = '';
-  if (!rows.length) { body.appendChild(el('tr', null, '<td colspan="8" class="bd-empty">Nothing in this view.</td>')); return; }
+  if (!rows.length) { body.appendChild(el('tr', null, '<td colspan="10" class="bd-empty">Nothing in this view.</td>')); return; }
   rows.slice(0, 400).forEach(i => {
     const open = expanded.has(i.id);
     const tr = el('tr', 'item-row' + (open ? ' open' : ''));
@@ -192,15 +202,22 @@ function renderItems() {
     const statusCell = currentBucket === 'review'
       ? `<span class="rev-reason">${esc(i.reviewReason || 'Needs review')}</span>`
       : statusTag(i);
+    const paidCell = i.paidCost == null
+      ? '<span class="muted-dash" title="No confirmed purchase-order price for any ingredient yet">—</span>'
+      : `${sar(i.paidCost)}${i.paidPartial ? ` <button class="partial-badge" data-status="partial" title="${i.paidCovered}/${i.paidTotalIng} ingredients priced from confirmed POs; the rest use the recipe price">partial</button>` : ''}`;
+    const driftCell = (i.paidCost == null || i.paidDriftSar == null)
+      ? '<span class="muted-dash">—</span>'
+      : `<button class="drift-link ${i.paidDriftSar > 0 ? 'up' : (i.paidDriftSar < 0 ? 'down' : 'flat')}" data-drift="${i.id}" title="Open the matching stale-cost recommendation">${i.paidDriftSar > 0 ? '+' : ''}${sar(i.paidDriftSar)} (${i.paidDriftPct > 0 ? '+' : ''}${i.paidDriftPct}%)</button>`;
     tr.innerHTML = `<td>${caret}${esc(i.name)}</td><td>${esc(i.category)}</td>`
       + `<td class="num">${sar(i.price)}</td><td class="num">${sar(i.storedCost)}</td><td class="num">${sar(i.trueCost)}</td>`
+      + `<td class="num">${paidCell}</td><td class="num">${driftCell}</td>`
       + `<td class="num">${pct(i.trueFoodPct)}</td>`
       + `<td class="num ${i.marginSar < 0 ? 'neg' : 'pos'}">${sar(i.marginSar)} (${pct(i.marginPct)})</td>`
-      + `<td>${statusCell}</td>`;
+      + `<td><button class="status-link" data-status="${statusKey(i)}">${statusCell}</button></td>`;
     body.appendChild(tr);
     if (open) {
       const dr = el('tr', 'bd-row');
-      dr.innerHTML = `<td colspan="8">${breakdownHTML(i)}</td>`;
+      dr.innerHTML = `<td colspan="10">${breakdownHTML(i)}</td>`;
       body.appendChild(dr);
     }
   });
@@ -307,8 +324,69 @@ function renderRecs() {
   });
 }
 
+// ---- Status explanations (Task 5) — single central map ----
+function statusKey(i) {
+  if (currentBucket === 'review') return 'review';
+  if (i.flags.includes('negative_margin')) return 'loss';
+  if (i.flags.includes('cost_missing')) return 'no_cost';
+  if (i.flags.includes('reconstructed')) return 'rebuilt';
+  if (i.flags.includes('thin_margin')) return 'over_target';
+  return 'healthy';
+}
+const STATUS_MAP = {
+  healthy: { label: 'Healthy', meaning: 'This item sells above your food-cost target and its true cost was determined.', action: 'No action needed.' },
+  rebuilt: { label: 'Cost rebuilt', meaning: 'Your ERP had no stored cost for this item, so OneSync computed the true cost from its recipe (bill of materials).', action: 'No action needed — but confirm the recipe quantities look right.' },
+  no_cost: { label: 'No cost set', meaning: 'The ERP has no stored cost and no recipe, so a true margin cannot be computed.', action: 'Add a cost or a recipe for this item in Odoo.' },
+  over_target: { label: 'Over target', meaning: 'True food cost is above your target, so the margin is thinner than it should be.', action: 'Reprice, re-portion the cost driver, or check for a stale ingredient cost.' },
+  loss: { label: 'Loss', meaning: 'True cost is higher than the sale price — this item loses money on every sale.', action: 'Reprice or re-portion urgently, or verify the recipe and cost are correct.' },
+  review: { label: 'Needs review', meaning: 'Auto-excluded from the menu — the price looks like a placeholder, or there is no cost/recipe to trust.', action: 'Fix the price or cost in Odoo; it rejoins the menu automatically.' },
+  partial: { label: 'Partial PO data', meaning: 'Only some ingredients have a confirmed purchase-order price; the rest fall back to the recipe price.', action: 'Confirm more purchase orders in Odoo to verify the full cost.' }
+};
+function showPop(key, x, y) {
+  const m = STATUS_MAP[key]; if (!m) return;
+  let pop = $('#statusPop');
+  if (!pop) { pop = el('div'); pop.id = 'statusPop'; pop.className = 'status-pop'; document.body.appendChild(pop); }
+  pop.innerHTML = `<div class="sp-title">${esc(m.label)}</div><div class="sp-row"><b>What it means:</b> ${esc(m.meaning)}</div><div class="sp-row"><b>What to do:</b> ${esc(m.action)}</div>`;
+  pop.style.display = 'block';
+  const left = Math.min(x, window.innerWidth - 312); pop.style.left = Math.max(8, left) + 'px'; pop.style.top = (y + 12) + 'px';
+}
+function hidePop() { const p = $('#statusPop'); if (p) p.style.display = 'none'; }
+function gotoRecs(type) { recFilter = type || 'all'; const t = document.querySelector('.smart-nav-link[data-tab="recs"]'); if (t) t.click(); }
+
+// ---- Wastage (Task 3) — real logged entries only ----
+function renderWastage() {
+  const w = DATA.result.wastage; if (!w || !$('#wasteHeadline')) return;
+  const s = w.sourcesFound;
+  $('#wasteHeadline').innerHTML = w.empty
+    ? `<div class="rec-hero-label">Logged waste — real entries only</div>
+       <div class="rec-hero-num" style="font-size:26px">No waste logged yet</div>
+       <div class="rec-hero-sub">No posted scrap entries in Odoo. Log waste in Odoo/Foodics to populate this view. Nothing here is derived from stock variance — receipts are unposted, so computed variance would be unreliable.</div>`
+    : `<div class="rec-hero-label">Logged waste — ${esc(w.source)}, posted entries only</div>
+       <div class="rec-hero-num">${fmtSar(w.totalSar)} <span>SAR</span></div>
+       <div class="rec-hero-sub">${w.totalQty} units across ${w.byItem.length} ingredient(s)${w.wastePct != null ? ` · <b>${w.wastePct}%</b> of confirmed purchase value` : ''}. Posted scrap only — no computed variance while stock is unreliable.</div>`;
+  let body = `<div class="card" style="padding:14px 18px;margin-bottom:14px">
+      <div class="why-row"><span class="why-label">stock.scrap</span><span class="why-val">${s.stock_scrap.posted} posted · ${s.stock_scrap.draft} draft (excluded)</span></div>
+      <div class="why-row"><span class="why-label">stock.move scrap</span><span class="why-val">${esc(s.stock_move_scrap.note)}</span></div>
+      <div class="why-row"><span class="why-label">Foodics</span><span class="why-val">${esc(s.foodics.note)}</span></div>
+    </div>`;
+  if (w.empty) {
+    body += `<div class="card" style="padding:24px;text-align:center;color:var(--ink-3)">No waste entries logged in stock.scrap yet — log waste in Odoo/Foodics to populate this view.</div>`;
+  } else {
+    body += `<article class="card"><div class="section-heading compact"><div><p class="eyebrow">By ingredient</p><h2>Highest logged waste</h2></div></div>
+      <div class="table-wrap"><table class="t"><thead><tr><th>Ingredient</th><th class="num">Qty</th><th class="num">Value (SAR)</th><th class="num">Entries</th></tr></thead><tbody>`
+      + w.byItem.map(b => `<tr><td>${esc(b.name)}</td><td class="num">${b.qty}</td><td class="num neg"><b>${sar(b.valueSar)}</b></td><td class="num">${b.count}</td></tr>`).join('')
+      + `</tbody></table></div></article>`;
+    body += `<article class="card"><div class="section-heading compact"><div><p class="eyebrow">Entries</p><h2>Every logged scrap — traceable to Odoo</h2></div></div>
+      <div class="table-wrap"><table class="t"><thead><tr><th>Ingredient</th><th class="num">Qty</th><th class="num">Unit cost</th><th class="num">Value</th><th>Date</th><th>Location</th></tr></thead><tbody>`
+      + w.entries.map(e => `<tr><td>${esc(e.name)}</td><td class="num">${e.qty}</td><td class="num">${sar(e.unitCost)}</td><td class="num neg">${sar(e.valueSar)}</td><td>${esc((e.date || '').slice(0, 10) || '—')}</td><td>${esc(e.location || '—')}</td></tr>`).join('')
+      + `</tbody></table></div></article>`;
+  }
+  body += `<p class="bucket-note">Coming next: theoretical-vs-actual variance wastage (recipes × sales vs. actual stock movement) — switched OFF until goods receipts are posted and stock is reliable.</p>`;
+  $('#wasteBody').innerHTML = body;
+}
+
 // ---- Nav ----
-const CRUMBS = { dashboard: 'Margin Dashboard', recs: 'Recommendations', alerts: 'Alerts', digest: 'Weekly Digest', branches: 'Branches', ai: 'AI Copilot' };
+const CRUMBS = { dashboard: 'Margin Dashboard', recs: 'Recommendations', alerts: 'Alerts', digest: 'Weekly Digest', branches: 'Branches', wastage: 'Wastage', ai: 'AI Copilot' };
 document.querySelectorAll('.smart-nav-link').forEach(t => t.addEventListener('click', e => {
   e.preventDefault();
   document.querySelectorAll('.smart-nav-link').forEach(x => x.classList.remove('active'));
@@ -322,12 +400,19 @@ document.querySelectorAll('.smart-nav-link').forEach(t => t.addEventListener('cl
 }));
 $('#search').addEventListener('input', () => DATA && renderItems());
 $('#itemsBody').addEventListener('click', e => {
+  const statusBtn = e.target.closest('.status-link, .partial-badge');
+  if (statusBtn) { e.stopPropagation(); showPop(statusBtn.dataset.status, e.clientX, e.clientY); return; }
+  const driftBtn = e.target.closest('.drift-link');
+  if (driftBtn) { e.stopPropagation(); gotoRecs('R3'); return; } // link drift → stale-cost recommendations
   const tr = e.target.closest('.item-row');
   if (!tr || !tr.dataset.id) return;
   const id = Number(tr.dataset.id);
   if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
   renderItems();
 });
+const driftSortBtn = $('#driftSort');
+if (driftSortBtn) driftSortBtn.addEventListener('click', () => { sortMode = sortMode === 'drift' ? 'margin' : 'drift'; driftSortBtn.classList.toggle('on', sortMode === 'drift'); renderItems(); });
+document.addEventListener('click', e => { if (!e.target.closest('#statusPop, .status-link, .partial-badge')) hidePop(); });
 $('#refreshBtn').addEventListener('click', () => load(true));
 function setMenu(open) {
   $('#appSidebar').classList.toggle('open', open);
