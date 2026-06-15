@@ -50,8 +50,21 @@
 .ai-input{display:flex;gap:var(--space-2);padding:var(--space-4) var(--space-5);border-top:1px solid var(--line-1)}
 .ai-input input{flex:1}
 
+/* Grouped negative-stock alert */
+.alert .draft-po{color:var(--accent-secondary-hover);font-weight:600;margin-top:5px;font-size:13px}
+.alert-expander{margin-top:9px}
+.alert-expander summary{cursor:pointer;color:var(--accent-primary);font-weight:600;font-size:12.5px;list-style:revert}
+.affected-list{margin-top:8px;max-height:300px;overflow-y:auto;border:1px solid var(--line-1);border-radius:8px}
+.aff-row{display:flex;justify-content:space-between;gap:12px;padding:6px 12px;border-bottom:1px solid var(--line-1);font-size:13px}
+.aff-row:last-child{border-bottom:0}
+
 /* Recommendations (v2) */
 .rec-headline{background:linear-gradient(120deg,#15265e,#1f3a8a);color:#fff;border-radius:16px;padding:22px 24px;box-shadow:var(--shadow-1);margin-bottom:16px}
+.rec-hero-label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#9fc0f0;font-weight:700;margin-bottom:2px}
+.rec-secondary{margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14);display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.sec-label{font-size:11px;color:#9fb3d1;font-style:italic;width:100%;margin-bottom:2px}
+.rec-secondary .rchip{font-size:11px;opacity:.82;padding:3px 9px;font-weight:600}
+.rec-advisory{margin-top:10px;font-size:11px;color:#8ea7c8}
 .rec-hero-num{font-family:var(--font-data);font-size:38px;font-weight:800;letter-spacing:-1px}
 .rec-hero-num span{font-size:16px;font-weight:600;opacity:.8}
 .rec-hero-sub{margin-top:4px;font-size:14px;color:#cdddf7;max-width:760px}

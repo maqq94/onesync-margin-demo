@@ -63,9 +63,10 @@ function render() {
   renderItems();
   renderRecs();
 
-  // Alerts
+  // Alerts — badge = distinct alert TYPES, not raw row count (247 rows looks like spam)
   const ab = $('#alertBadge');
-  if (r.alerts.length) { ab.hidden = false; ab.textContent = r.alerts.length; } else ab.hidden = true;
+  const typeCount = new Set(r.alerts.map(a => a.type)).size;
+  if (typeCount) { ab.hidden = false; ab.textContent = typeCount; } else ab.hidden = true;
   const al = $('#alertsList'); al.innerHTML = '';
   if (!r.alerts.length) al.appendChild(el('div', 'alert', '<div class="bar"></div><div>No alerts — every item priced and within target.</div>'));
   r.alerts.forEach(a => {
@@ -75,6 +76,17 @@ function render() {
     b.appendChild(el('div', 'type', esc(a.type)));
     b.appendChild(el('div', 'item', esc(a.item)));
     b.appendChild(el('div', 'detail', esc(a.detail)));
+    if (a.draftPo && a.draftPo.count) {
+      b.appendChild(el('div', 'detail draft-po', `Tied to ${a.draftPo.count} purchase orders still in draft — about ${fmtSar(a.draftPo.sar)} SAR of stock never received.`));
+    }
+    if (a.group && a.affected && a.affected.length) {
+      const exp = el('details', 'alert-expander');
+      exp.appendChild(el('summary', null, `Show all ${a.count} affected ingredients`));
+      const list = el('div', 'affected-list');
+      list.innerHTML = a.affected.map(x => `<div class="aff-row"><span>${esc(x.name)}</span><span class="num neg">${x.qty}</span></div>`).join('');
+      exp.appendChild(list);
+      b.appendChild(exp);
+    }
     n.appendChild(b); al.appendChild(n);
   });
 
@@ -84,7 +96,7 @@ function render() {
   const dl = $('#digestLeaks'); dl.innerHTML = '';
   if (!d.topLeaks.length) dl.appendChild(el('tr', null, '<td>No leaks detected.</td>'));
   d.topLeaks.forEach(i => dl.appendChild(el('tr', null,
-    `<td>${esc(i.name)}</td><td class="num">${pct(i.trueFoodPct)} food cost</td><td class="num ${i.marginSar < 0 ? 'neg' : ''}">${sar(i.marginSar)} SAR/unit</td>`)));
+    `<td>${esc(i.name)}</td><td class="num neg"><b>${sar(i.leakMonth)} SAR/mo</b></td><td class="num">${pct(i.trueFoodPct)} food cost</td><td class="num">${i.units}/mo sold</td>`)));
   const dc = $('#digestCats'); dc.innerHTML = '';
   d.categories.slice(0, 10).forEach(c => dc.appendChild(el('tr', null,
     `<td>${esc(c.name)}</td><td class="num">${c.items} items</td><td class="num">${pct(c.avgFoodPct)} avg food cost</td>`)));
@@ -242,13 +254,15 @@ function renderRecs() {
   const r = DATA.result, roll = r.recRollup || {}, recs = r.recommendations || [];
   if (!$('#recHeadline')) return;
   $('#recHeadline').innerHTML =
-    `<div class="rec-hero-num">~${fmtSar(roll.recoverablePerMonth)} <span>SAR / month</span></div>
-     <div class="rec-hero-sub">recoverable margin across <b>${recs.filter(x => x.cls === 'recoverable').length}</b> cost-side actions — about ${fmtSar(roll.recoverableAnnual)} SAR/year, from your own ERP data.</div>
-     <div class="rec-hero-chips">
-       <span class="rchip pricing">+ ${fmtSar(roll.pricingUpsidePerMonth)} SAR/mo pricing upside</span>
-       <span class="rchip scenario">+ ${fmtSar(roll.scenarioPerMonth)} SAR/mo menu-mix scenarios</span>
-       <span class="rchip muted">${roll.count} recommendations · advisory only, never auto-applied</span>
-     </div>`;
+    `<div class="rec-hero-label">Recoverable margin — cost-side, verified, no price changes</div>
+     <div class="rec-hero-num">~${fmtSar(roll.recoverablePerMonth)} <span>SAR / month</span></div>
+     <div class="rec-hero-sub">across <b>${recs.filter(x => x.cls === 'recoverable').length}</b> actions, about ${fmtSar(roll.recoverableAnnual)} SAR/year. This is the number we defend — fix costs, trim portions, switch to a supplier you already use.</div>
+     <div class="rec-secondary">
+       <span class="sec-label">Theoretical ceiling — before any volume response, not bankable:</span>
+       <span class="rchip pricing">+${fmtSar(roll.pricingUpsidePerMonth)}/mo if prices were raised</span>
+       <span class="rchip scenario">+${fmtSar(roll.scenarioPerMonth)}/mo menu-mix scenarios</span>
+     </div>
+     <div class="rec-advisory">${roll.count} recommendations · advisory only, never auto-applied</div>`;
 
   const types = ['all', 'R3', 'R2', 'R1', 'R5', 'R4'];
   const filt = $('#recFilter'); filt.innerHTML = '';
